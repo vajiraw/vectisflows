@@ -1,3 +1,6 @@
 [submodule "vectisflows/vectisflows"]
 	path = vectisflows/vectisflows
 	url = https://github.com/vajiraw/vectisflows
+[submodule "docs/vectisflows"]
+	path = docs/vectisflows
+	url = https://github.com/vajiraw/vectisflows
