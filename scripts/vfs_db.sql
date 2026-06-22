@@ -2,7 +2,7 @@
 
 ```sql
 -- ---------------------------------------------------------
--- VECTISFLOWS (VFS) DATABASE SCHEMA
+-- VERSTACK (VFS) DATABASE SCHEMA
 -- Purpose: Institutional B2B Trade Execution Engine
 -- ---------------------------------------------------------
 
@@ -108,6 +108,22 @@ CREATE TABLE audit_logs (
     ip_address INET,
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE TABLE operational_ledger (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(50) NOT NULL,
+    correlation_id UUID NOT NULL,       -- Ties the entire lifecycle together
+    event_type VARCHAR(100) NOT NULL,    -- 'rfq.raw_received', 'shipment.webhook_received'
+    status VARCHAR(30) NOT NULL,         -- 'PENDING', 'PROCESSED', 'FAILED'
+    payload JSONB NOT NULL,              -- Raw input text, legacy data, or parameters
+    error_log TEXT,                      -- Captured stack traces if processing fails
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    processed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Crucial for performance: Index only open/pending actions
+CREATE INDEX idx_pending_ledger ON operational_ledger (status) WHERE status = 'PENDING';
+
 
 -- ---------------------------------------------------------
 -- SAMPLE RECORDS FOR TESTING (Ceylon Tea Scenario)
