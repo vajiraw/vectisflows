@@ -1,0 +1,146 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql" 
+}
+
+model audit_logs {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trade_id       String?       @db.Uuid
+  actor_id       String?       @db.Uuid
+  action         String?       @db.VarChar(255)
+  previous_state Json?
+  new_state      Json?
+  ip_address     String?       @db.Inet
+  created_at     DateTime?     @default(now()) @db.Timestamp(6)
+  users          users?        @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  trade_orders   trade_orders? @relation(fields: [trade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model document_vault {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trade_id          String?       @db.Uuid
+  doc_type          String?       @db.VarChar(100)
+  file_url          String
+  ai_extracted_data Json?
+  is_verified       Boolean?      @default(false)
+  uploaded_at       DateTime?     @default(now()) @db.Timestamp(6)
+  trade_orders      trade_orders? @relation(fields: [trade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model escrow_accounts {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trade_id           String?       @unique @db.Uuid
+  virtual_account_id String?       @db.VarChar(255)
+  balance_usd        Decimal?      @default(0.00) @db.Decimal(15, 2)
+  status             String?       @default("AWAITING_DEPOSIT") @db.VarChar(50)
+  trade_orders       trade_orders? @relation(fields: [trade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model operational_ledger {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id      String    @db.VarChar(50)
+  correlation_id String    @db.Uuid
+  event_type     String    @db.VarChar(100)
+  status         String    @db.VarChar(30)
+  payload        Json
+  error_log      String?
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  processed_at   DateTime? @db.Timestamptz(6)
+
+  @@index([status], map: "idx_pending_ledger", where: raw("((status)::text = 'PENDING'::text)"))
+}
+
+model organizations {
+  id                                                 String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                                               String                @db.VarChar(255)
+  role                                               org_role
+  country_code                                       String?               @db.Char(2)
+  is_kyb_verified                                    Boolean?              @default(false)
+  metadata                                           Json?
+  created_at                                         DateTime?             @default(now()) @db.Timestamp(6)
+  quality_inspections                                quality_inspections[]
+  rfqs                                               rfqs[]
+  trade_orders_trade_orders_bank_idToorganizations   trade_orders[]        @relation("trade_orders_bank_idToorganizations")
+  trade_orders_trade_orders_seller_idToorganizations trade_orders[]        @relation("trade_orders_seller_idToorganizations")
+  users                                              users[]
+}
+
+model quality_inspections {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trade_id      String?        @db.Uuid
+  inspector_id  String?        @db.Uuid
+  lab_metrics   Json?
+  status        String?        @default("PENDING") @db.VarChar(50)
+  report_url    String?
+  inspected_at  DateTime?      @db.Timestamp(6)
+  organizations organizations? @relation(fields: [inspector_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  trade_orders  trade_orders?  @relation(fields: [trade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model rfqs {
+  id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buyer_id              String?        @db.Uuid
+  commodity_type        String?        @db.VarChar(100)
+  quantity              Decimal        @db.Decimal
+  unit                  String         @db.VarChar(20)
+  technical_specs       Json
+  required_certificates String[]
+  expires_at            DateTime?      @db.Timestamp(6)
+  status                String?        @default("ACTIVE") @db.VarChar(50)
+  organizations         organizations? @relation(fields: [buyer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  trade_orders          trade_orders[]
+}
+
+model trade_orders {
+  id                                                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rfq_id                                              String?               @db.Uuid
+  seller_id                                           String?               @db.Uuid
+  bank_id                                             String?               @db.Uuid
+  current_status                                      trade_status?         @default(CONTRACT_PENDING)
+  total_value_usd                                     Decimal?              @db.Decimal(15, 2)
+  contract_terms                                      Json?
+  created_at                                          DateTime?             @default(now()) @db.Timestamp(6)
+  updated_at                                          DateTime?             @default(now()) @db.Timestamp(6)
+  audit_logs                                          audit_logs[]
+  document_vault                                      document_vault[]
+  escrow_accounts                                     escrow_accounts?
+  quality_inspections                                 quality_inspections[]
+  organizations_trade_orders_bank_idToorganizations   organizations?        @relation("trade_orders_bank_idToorganizations", fields: [bank_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rfqs                                                rfqs?                 @relation(fields: [rfq_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations_trade_orders_seller_idToorganizations organizations?        @relation("trade_orders_seller_idToorganizations", fields: [seller_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model users {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id           String?        @db.Uuid
+  email            String         @unique @db.VarChar(255)
+  password_hash    String
+  role_permissions Json?
+  created_at       DateTime?      @default(now()) @db.Timestamp(6)
+  audit_logs       audit_logs[]
+  organizations    organizations? @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+enum org_role {
+  BUYER
+  SELLER
+  BANK
+  INSPECTOR
+  LOGISTICS
+}
+
+enum trade_status {
+  CONTRACT_PENDING
+  ESCROW_AWAITING_FUNDS
+  PRODUCTION_IN_PROGRESS
+  INSPECTION_TRIGGERED
+  INSPECTION_PASSED
+  INSPECTION_FAILED
+  LOGISTICS_DISPATCHED
+  COMPLETED
+  DISPUTED
+}

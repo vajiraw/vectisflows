@@ -1,10 +1,18 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { RfqsModule } from './rfqs/rfqs.module';
+import { MessagingModule } from './shared/messaging/messaging.module';
+import { HealthController } from './shared/messaging/health.controller';
+import { DatabaseModule } from './shared/database';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
+  imports: [
+    RfqsModule,
+    MessagingModule.register(),
+    DatabaseModule
+  ],
+  controllers: [AppController, HealthController],
   providers: [AppService],
 })
 export class AppModule {}
