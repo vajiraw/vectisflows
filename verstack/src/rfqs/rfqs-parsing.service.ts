@@ -59,22 +59,25 @@ export class RfqsParsingService {
   }
 
   async enqueueParsingJob(body: ParseRfqDto): Promise<string> {
-    this.logger.log('Enqueuing RFQ parsing job');
-
+    // this.logger.debug('XXX',body);
+    console.log('2. Service received body:', JSON.stringify(body));
+    const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
+    const payloadData = parsedBody.fileData || parsedBody.prompt || '';
+    console.log('Extracted payload:', payloadData);
     const trackingId = randomUUID();
 
     const rfqPayload: RFQDataPayload = {
       id: trackingId,
       sourceType: 'pdf',
-      payload: body.fileData || body.prompt || '',
+      payload:  JSON.stringify(body),
       metadata: {
-        prompt: body.prompt,
       },
+      // this.logger.log(payload: `Constructed RFQDataPayload: ${JSON.stringify(rfqPayload)}`),;
       createdAt: new Date().toISOString(),
       createdBy: 'rfq-service',
     };
 
-    this.logger.debug(`Constructed RFQDataPayload: ${rfqPayload.id}`);
+    this.logger.debug(`Constructed Payload: ${rfqPayload.payload}`);
 
     await this.persistRfqOperationalLedger({
       rfqPayload,

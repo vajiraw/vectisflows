@@ -2,9 +2,10 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { MicroserviceOptions } from '@nestjs/microservices';
 import { WinstonModule } from 'nest-winston';
-import * as winston from 'winston';
 import { loggerConfig } from './common/logger.config';
 import { MessagingModule } from './shared/messaging';
+import 'dotenv/config';
+
 
 async function bootstrap() {
   // Create Winston logger instance
