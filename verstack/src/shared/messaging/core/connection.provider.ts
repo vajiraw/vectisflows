@@ -1,10 +1,17 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import * as amqp from 'amqplib';
 import { IAmqpConnection } from '../interfaces/messaging.interface';
 import { MESSAGING_CONFIG } from '../messaging.constants';
 
 @Injectable()
-export class AmqpConnectionProvider implements IAmqpConnection, OnModuleInit, OnModuleDestroy {
+export class AmqpConnectionProvider
+  implements IAmqpConnection, OnModuleInit, OnModuleDestroy
+{
   // Use `any` to avoid tight coupling with amqplib type variations across versions
   private connection: any;
   private channel: any;
@@ -71,10 +78,9 @@ export class AmqpConnectionProvider implements IAmqpConnection, OnModuleInit, On
       await this.channel.assertExchange('rfq.ai.dlx', 'direct', {
         durable: true,
       });
-      await this.channel.assertQueue(
-        MESSAGING_CONFIG.queues.DLQ.name,
-        { durable: MESSAGING_CONFIG.queues.DLQ.durable },
-      );
+      await this.channel.assertQueue(MESSAGING_CONFIG.queues.DLQ.name, {
+        durable: MESSAGING_CONFIG.queues.DLQ.durable,
+      });
       await this.channel.bindQueue(
         MESSAGING_CONFIG.queues.DLQ.name,
         'rfq.ai.dlx',
@@ -83,7 +89,11 @@ export class AmqpConnectionProvider implements IAmqpConnection, OnModuleInit, On
 
       // Bind queue to exchange
       for (const binding of MESSAGING_CONFIG.bindings) {
-        await this.channel.bindQueue(binding.queue, binding.exchange, binding.routingKey);
+        await this.channel.bindQueue(
+          binding.queue,
+          binding.exchange,
+          binding.routingKey,
+        );
       }
 
       this.reconnectAttempts = 0;

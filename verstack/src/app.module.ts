@@ -7,11 +7,7 @@ import { HealthController } from './shared/messaging/health.controller';
 import { DatabaseModule } from './shared/database';
 
 @Module({
-  imports: [
-    RfqsModule,
-    MessagingModule.register(),
-    DatabaseModule
-  ],
+  imports: [MessagingModule.register(), DatabaseModule.forRoot(), RfqsModule],
   controllers: [AppController, HealthController],
   providers: [AppService],
 })

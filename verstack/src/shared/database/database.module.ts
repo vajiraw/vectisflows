@@ -1,9 +1,4 @@
-import {
-  Module,
-  DynamicModule,
-  Provider,
-  Global,
-} from '@nestjs/common';
+import { Module, DynamicModule, Provider, Global } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { DatabaseService } from './database.service';
 import { ConnectionPoolService } from './connection-pool.service';
@@ -12,26 +7,15 @@ import {
   PRISMA_SERVICE,
   CONNECTION_POOL_SERVICE,
 } from './constants';
-import { DatabaseOptions, DatabaseConfig } from './interfaces';
+import { DatabaseOptions } from './interfaces';
 
-/**
- * Database Module
- * Provides Prisma ORM integration with NestJS
- * Supports dynamic module registration with forRoot pattern
- */
 @Global()
 @Module({})
 export class DatabaseModule {
-  /**
-   * Register database module synchronously
-   */
   static forRoot(options?: DatabaseOptions): DynamicModule {
-    const isGlobal = options?.isGlobal ?? true;
-    const config = options?.config;
-
     const moduleConfig: DatabaseOptions = {
-      isGlobal,
-      config,
+      isGlobal: options?.isGlobal ?? true,
+      config: options?.config,
     };
 
     const providers: Provider[] = [
@@ -45,45 +29,27 @@ export class DatabaseModule {
       },
       {
         provide: CONNECTION_POOL_SERVICE,
-        useFactory: (options: DatabaseOptions) => {
-          return new ConnectionPoolService(options?.config);
-        },
+        useFactory: (options: DatabaseOptions) =>
+          new ConnectionPoolService(options?.config),
         inject: [DATABASE_MODULE_OPTIONS],
       },
       {
         provide: DatabaseService,
-        useFactory: (
-          prisma: PrismaService,
-          pool: ConnectionPoolService,
-        ) => {
-          return new DatabaseService(prisma, pool);
-        },
+        useFactory: (prisma: PrismaService, pool: ConnectionPoolService) =>
+          new DatabaseService(prisma, pool),
         inject: [PRISMA_SERVICE, CONNECTION_POOL_SERVICE],
       },
-      PrismaService,
-      ConnectionPoolService,
-      DatabaseService,
     ];
 
     return {
       module: DatabaseModule,
-      global: isGlobal,
+      global: moduleConfig.isGlobal,
       providers,
-      exports: [
-        DatabaseService,
-        PrismaService,
-        ConnectionPoolService,
-        DATABASE_MODULE_OPTIONS,
-      ],
+      exports: [DatabaseService, DATABASE_MODULE_OPTIONS],
     };
   }
 
-  /**
-   * Register database module asynchronously
-   */
-  static forRootAsync(
-    asyncOptions?: any,
-  ): DynamicModule {
+  static forRootAsync(asyncOptions: any): DynamicModule {
     return {
       module: DatabaseModule,
       global: asyncOptions?.isGlobal ?? true,
@@ -100,31 +66,18 @@ export class DatabaseModule {
         },
         {
           provide: CONNECTION_POOL_SERVICE,
-          useFactory: (options: DatabaseOptions) => {
-            return new ConnectionPoolService(options?.config);
-          },
+          useFactory: (options: DatabaseOptions) =>
+            new ConnectionPoolService(options?.config),
           inject: [DATABASE_MODULE_OPTIONS],
         },
         {
           provide: DatabaseService,
-          useFactory: (
-            prisma: PrismaService,
-            pool: ConnectionPoolService,
-          ) => {
-            return new DatabaseService(prisma, pool);
-          },
+          useFactory: (prisma: PrismaService, pool: ConnectionPoolService) =>
+            new DatabaseService(prisma, pool),
           inject: [PRISMA_SERVICE, CONNECTION_POOL_SERVICE],
         },
-        PrismaService,
-        ConnectionPoolService,
-        DatabaseService,
       ],
-      exports: [
-        DatabaseService,
-        PrismaService,
-        ConnectionPoolService,
-        DATABASE_MODULE_OPTIONS,
-      ],
+      exports: [DatabaseService, DATABASE_MODULE_OPTIONS],
     };
   }
 }

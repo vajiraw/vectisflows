@@ -11,7 +11,8 @@ import { MESSAGING_CONFIG } from '../messaging.constants';
 @Injectable()
 export class ConsumerExplorer {
   private logger = new Logger(ConsumerExplorer.name);
-  private consumers: Map<string, (msg: amqp.ConsumeMessage) => Promise<void>> = new Map();
+  private consumers: Map<string, (msg: amqp.ConsumeMessage) => Promise<void>> =
+    new Map();
 
   constructor(private readonly amqpConnection: AmqpConnectionProvider) {}
 
@@ -47,7 +48,9 @@ export class ConsumerExplorer {
 
           // Nack the message and requeue it (will go to DLQ after max retries configured in queue)
           channel.nack(msg, false, false);
-          this.logger.error(`Message nacked and sent to DLQ: ${msg.properties.messageId || 'unknown'}`);
+          this.logger.error(
+            `Message nacked and sent to DLQ: ${msg.properties.messageId || 'unknown'}`,
+          );
         }
       }
     };

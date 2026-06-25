@@ -1,9 +1,13 @@
+import 'dotenv/config';
+
 export const MESSAGING_CONFIG = {
   connection: {
+    // Only sensitive or environment-specific strings go to process.env
     urls: [process.env.RABBITMQ_URL || 'amqp://localhost:5672'],
     connectionOptions: {
-      reconnectTimeInSeconds: 5,
-      heartbeatInterval: 30,
+      reconnectTimeInSeconds:
+        Number(process.env.RABBITMQ_RECONNECT_SECONDS) || 5,
+      heartbeatInterval: Number(process.env.RABBITMQ_HEARTBEAT_SECONDS) || 30,
     },
   },
   exchanges: {
@@ -37,8 +41,9 @@ export const MESSAGING_CONFIG = {
       routingKey: 'rfq.status.uploaded',
     },
   ],
-};
+} as const; // Makes the configuration immutable
 
+// Injection tokens belong here in code, never in .env
 export const DQ_MESSAGING_MODULE_IMPORT_TOKEN = 'DQ_MESSAGING_MODULE_IMPORT';
 export const DQ_MESSAGING_SERVICE_TOKEN = 'DQ_MESSAGING_SERVICE';
 export const DQ_AMQP_CONNECTION_TOKEN = 'DQ_AMQP_CONNECTION';

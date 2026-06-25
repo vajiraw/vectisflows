@@ -46,7 +46,9 @@ describe('PrismaService', () => {
     });
 
     it('should return false when database is unhealthy', async () => {
-      jest.spyOn(service, '$queryRaw').mockRejectedValue(new Error('Connection failed'));
+      jest
+        .spyOn(service, '$queryRaw')
+        .mockRejectedValue(new Error('Connection failed'));
       const health = await service.getHealthStatus();
       expect(health).toBe(false);
     });

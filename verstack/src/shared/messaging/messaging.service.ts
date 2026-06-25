@@ -32,7 +32,9 @@ export class MessagingService implements IMessagingService {
   ): Promise<boolean> {
     try {
       if (!this.amqpConnection.isConnected()) {
-        this.logger.warn('AMQP connection not ready, attempting reconnection...');
+        this.logger.warn(
+          'AMQP connection not ready, attempting reconnection...',
+        );
         await this.amqpConnection.connect();
       }
 
@@ -49,14 +51,21 @@ export class MessagingService implements IMessagingService {
       };
 
       const buffer = Buffer.from(JSON.stringify(message));
-      const published = channel.publish(exchange, routingKey, buffer, publishOptions);
+      const published = channel.publish(
+        exchange,
+        routingKey,
+        buffer,
+        publishOptions,
+      );
 
       if (published) {
         this.logger.log(
           `✓ Message published to ${exchange} with routing key: ${routingKey}`,
         );
       } else {
-        this.logger.warn(`Channel buffer full, message may not be delivered immediately`);
+        this.logger.warn(
+          `Channel buffer full, message may not be delivered immediately`,
+        );
       }
 
       return published;
@@ -79,7 +88,7 @@ export class MessagingService implements IMessagingService {
     options?: Record<string, unknown>,
   ): Promise<boolean> {
     return this.publishMessage(
-      (payload as unknown) as Record<string, unknown>,
+      payload as unknown as Record<string, unknown>,
       MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED,
       options,
     );
@@ -90,7 +99,10 @@ export class MessagingService implements IMessagingService {
    * @param queue The queue name to subscribe to
    * @param handler Async function to handle each message
    */
-  async subscribe(queue: string, handler: (msg: RFQDataPayload) => Promise<void>): Promise<void> {
+  async subscribe(
+    queue: string,
+    handler: (msg: RFQDataPayload) => Promise<void>,
+  ): Promise<void> {
     try {
       if (!this.amqpConnection.isConnected()) {
         await this.amqpConnection.connect();

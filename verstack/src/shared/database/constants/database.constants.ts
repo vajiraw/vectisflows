@@ -26,7 +26,10 @@ export const DEFAULT_DATABASE_CONFIG = {
   password: process.env.DB_PASSWORD || 'akinsa',
   ssl: process.env.DB_SSL === 'true',
   logLevel: (process.env.DATABASE_LOG_LEVEL as any) || 'info',
-  connectionTimeoutMs: parseInt(process.env.DB_CONNECTION_TIMEOUT || '5000', 10),
+  connectionTimeoutMs: parseInt(
+    process.env.DB_CONNECTION_TIMEOUT || '5000',
+    10,
+  ),
   idleTimeoutMs: parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10),
   maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || '10', 10),
 };

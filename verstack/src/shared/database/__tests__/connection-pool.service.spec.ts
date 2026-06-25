@@ -1,8 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConnectionPoolService } from '../connection-pool.service';
 import { DEFAULT_CONNECTION_POOL_CONFIG } from '../constants';
-import { describe, test, expect,beforeEach,it } from '@jest/globals'; 
-
+import { describe, test, expect, beforeEach, it } from '@jest/globals';
 
 describe('ConnectionPoolService', () => {
   let service: ConnectionPoolService;
@@ -81,7 +80,9 @@ describe('ConnectionPoolService', () => {
       await service.acquireConnection();
       const stats = service.getStatistics();
 
-      expect(stats.totalConnections).toBe(stats.activeConnections + stats.idleConnections);
+      expect(stats.totalConnections).toBe(
+        stats.activeConnections + stats.idleConnections,
+      );
     });
   });
 

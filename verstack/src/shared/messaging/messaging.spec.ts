@@ -15,18 +15,14 @@ describe('MessagingService Integration Tests', () => {
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
-      providers: [
-        MessagingService,
-        AmqpConnectionProvider,
-        ConsumerExplorer,
-      ],
+      providers: [MessagingService, AmqpConnectionProvider, ConsumerExplorer],
     }).compile();
 
     amqpConnection = module.get(AmqpConnectionProvider);
     messagingService = module.get(MessagingService);
 
     // Wait for connection to establish
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   });
 
   afterAll(async () => {
@@ -93,10 +89,7 @@ describe('MessagingService Integration Tests', () => {
         // Handler implementation
       });
 
-      await messagingService.subscribe(
-        'queue.ai.processing',
-        handler,
-      );
+      await messagingService.subscribe('queue.ai.processing', handler);
 
       const consumers = messagingService.getRegisteredConsumers();
       expect(consumers.size).toBeGreaterThan(0);

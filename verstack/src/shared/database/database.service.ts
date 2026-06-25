@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { ConnectionPoolService } from './connection-pool.service';
 
-
 /**
  * Database Service
  * Provides base database operations and utilities
@@ -89,23 +88,21 @@ export class DatabaseService {
   // }
 
   async transaction<T>(callback: (tx: any) => Promise<T>): Promise<T> {
-  this.logger.debug('Starting database transaction');
+    this.logger.debug('Starting database transaction');
 
-  try {
-    // Explicitly pass the generic type T to Prisma's $transaction method
-    const result = await this.prisma.$transaction<T>(async (tx) => {
-      return await callback(tx);
-    });
+    try {
+      // Explicitly pass the generic type T to Prisma's $transaction method
+      const result = await this.prisma.$transaction<T>(async (tx) => {
+        return await callback(tx);
+      });
 
-    this.logger.debug('Transaction completed successfully');
-    return result;
-  } catch (error) {
-    this.logger.error('Transaction failed', error);
-    throw error;
+      this.logger.debug('Transaction completed successfully');
+      return result;
+    } catch (error) {
+      this.logger.error('Transaction failed', error);
+      throw error;
+    }
   }
-}
-
-
 
   /**
    * Execute a raw SQL query
@@ -169,7 +166,9 @@ export class DatabaseService {
   async testConnection(timeoutMs: number = 5000): Promise<boolean> {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        this.logger.warn(`Database connection test timed out after ${timeoutMs}ms`);
+        this.logger.warn(
+          `Database connection test timed out after ${timeoutMs}ms`,
+        );
         resolve(false);
       }, timeoutMs);
 

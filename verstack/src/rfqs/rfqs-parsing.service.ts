@@ -1,11 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { ParseRfqDto } from './dto/parse-rfq.dto';
 import { MessagingService } from '../shared/messaging/messaging.service';
 import { RFQDataPayload } from '../shared/messaging/interfaces/event-payload.interface';
 import { DatabaseService } from '../shared/database/database.service';
 
-const PARSING_PATTERN = 'rfq.parse';
+const PARSING_PATTERN = 'rfq.raw_received';
 
 @Injectable()
 export class RfqsParsingService {
@@ -58,48 +63,147 @@ export class RfqsParsingService {
     return row.id as string;
   }
 
+  /**
+   * Safely updates the operational state of an RFQ ledger tracking record via raw SQL.
+   */
+  public async updateRfqLedgerStatus(
+    trackingId: string,
+    status:
+      | 'PENDING_ENQUEUE'
+      | 'ENQUEUED'
+      | 'FAILED_TO_ENQUEUE'
+      | 'PROCESSING'
+      | 'COMPLETED'
+      | 'FAILED',
+    errorLog: string | null = null,
+  ): Promise<void> {
+    this.logger.debug(
+      `Updating RFQ Ledger [Correlation ID: ${trackingId}] status to: ${status}`,
+    );
+
+    try {
+      // Execute live raw query against the operational ledger using Prisma
+      await this.databaseService
+        .getPrismaClient()
+        .$queryRawUnsafe(
+          `UPDATE operational_ledger 
+           SET status = $1, error_log = $2, updated_at = NOW()
+           WHERE correlation_id = $3`,
+          status,
+          errorLog,
+          trackingId,
+        );
+
+      this.logger.log(
+        `Successfully transitioned tracking ID ${trackingId} to status: ${status}`,
+      );
+    } catch (databaseError) {
+      this.logger.error(
+        `CRITICAL DB ERROR: Failed to update ledger status for Tracking ID: ${trackingId} to ${status}`,
+        databaseError instanceof Error ? databaseError.stack : databaseError,
+      );
+      // We bubble this error out so handlers know the DB update step failed
+      throw databaseError;
+    }
+  }
+
+  /**
+   * Validates, tracks, persists, and streams the RFQ request down to the message broker.
+   */
   async enqueueParsingJob(body: ParseRfqDto): Promise<string> {
-    // this.logger.debug('XXX',body);
     console.log('2. Service received body:', JSON.stringify(body));
-    const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
-    const payloadData = parsedBody.fileData || parsedBody.prompt || '';
-    console.log('Extracted payload:', payloadData);
+
+    let payloadData: any;
+    try {
+      const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
+      payloadData = parsedBody?.fileData || parsedBody?.prompt || '';
+      
+      if (!payloadData) {
+        throw new Error('Payload data extracted is blank or missing valid attributes.');
+      }
+    } catch (parseError) {
+      this.logger.error(
+        'Failed to parse request body structural data',
+        parseError,
+      );
+      throw new BadRequestException('Invalid request body payload format', {
+        description:
+          'The payload must contain either a valid fileData string or an AI prompt text.',
+      });
+    }
+
     const trackingId = randomUUID();
 
     const rfqPayload: RFQDataPayload = {
       id: trackingId,
       sourceType: 'pdf',
-      payload:  JSON.stringify(body),
-      metadata: {
-      },
-      // this.logger.log(payload: `Constructed RFQDataPayload: ${JSON.stringify(rfqPayload)}`),;
+      payload: payloadData, 
+      metadata: {},
       createdAt: new Date().toISOString(),
       createdBy: 'rfq-service',
     };
 
-    this.logger.debug(`Constructed Payload: ${rfqPayload.payload}`);
-
-    await this.persistRfqOperationalLedger({
-      rfqPayload,
-      correlationId: trackingId,
-    });
-
+    // 1. Core Persistence Step
     try {
-      const published = await this.messagingService.publishRFQPayload(rfqPayload);
-      if (published) {
-        this.logger.log(`RFQ parsing job published with tracking ID: ${trackingId}`);
-      } else {
-        this.logger.warn(`Publish returned false for tracking ID: ${trackingId}`);
-      }
-    } catch (error) {
+      await this.persistRfqOperationalLedger({
+        rfqPayload,
+        correlationId: trackingId,
+        status: 'PENDING_ENQUEUE',
+      });
+    } catch (dbWriteError) {
       this.logger.error(
-        'Error publishing RFQ payload:',
-        error instanceof Error ? error.message : error,
+        `CRITICAL: Primary DB Write Failed for tracking ID: ${trackingId}. Systems degraded.`,
+        dbWriteError,
       );
-      throw new Error('Failed to enqueue parsing job');
+      // NOTE: If you have an emergency disk service configured, trigger it here:
+      // await this.emergencyLocalDiskService.dump(trackingId, rfqPayload).catch(...);
+      
+      throw new InternalServerErrorException('Data persistence failure. Request aborted.');
     }
 
-    return trackingId;
+    // 2. Broker Streaming Step
+    try {
+      const published = await this.messagingService.publishRFQPayload(rfqPayload);
+
+      if (published) {
+        this.logger.log(
+          `RFQ parsing job published with tracking ID: ${trackingId}`,
+        );
+
+        // Update status to ENQUEUED in DB now that RabbitMQ has accepted it
+        await this.updateRfqLedgerStatus(trackingId, 'ENQUEUED').catch((statusErr) => {
+          this.logger.error(
+            `Minor Consistency Warning: Message sent to RabbitMQ but failed to mark database status as ENQUEUED for ${trackingId}`,
+            statusErr,
+          );
+        });
+
+        return trackingId;
+      } else {
+        throw new Error(
+          'Broker rejected message or returned negative acknowledgment',
+        );
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Failed to enqueue tracking ID ${trackingId}. Marking ledger as failed.`,
+        error instanceof Error ? error.stack : error,
+      );
+
+      // Roll back the record state gracefully to reflect transit errors
+      await this.updateRfqLedgerStatus(trackingId, 'FAILED_TO_ENQUEUE', errorMessage).catch(
+        (dbErr) => {
+          this.logger.error(
+            `CRITICAL: Could not update ledger failure state for ${trackingId}`,
+            dbErr,
+          );
+        },
+      );
+
+      throw new InternalServerErrorException(
+        'Failed to process and enqueue your parsing request',
+      );
+    }
   }
 }
-

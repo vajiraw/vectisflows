@@ -1,8 +1,6 @@
-import { Injectable, Logger , Optional} from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConnectionPoolConfig, PoolStatistics } from './interfaces';
-import {
-  DEFAULT_CONNECTION_POOL_CONFIG,
-} from './constants';
+import { DEFAULT_CONNECTION_POOL_CONFIG } from './constants';
 
 /**
  * Connection Pool Service
@@ -18,9 +16,7 @@ export class ConnectionPoolService {
   private totalWaitTime = 0;
   private createdAt = new Date();
 
-  constructor(
-    @Optional() config?: Partial<ConnectionPoolConfig>,
-  ) {
+  constructor(@Optional() config?: Partial<ConnectionPoolConfig>) {
     this.config = {
       ...DEFAULT_CONNECTION_POOL_CONFIG,
       ...config,
@@ -103,7 +99,8 @@ export class ConnectionPoolService {
     try {
       if (
         this.activeConnections < this.config.minConnections &&
-        this.idleConnections + this.activeConnections < this.config.minConnections
+        this.idleConnections + this.activeConnections <
+          this.config.minConnections
       ) {
         this.logger.warn(
           `Pool below minimum connections. Min: ${this.config.minConnections}, Current: ${this.activeConnections + this.idleConnections}`,

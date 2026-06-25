@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { MessagingService } from './messaging.service';
-import { RFQDataPayload, RFQProcessingResult } from './interfaces/event-payload.interface';
+import {
+  RFQDataPayload,
+  RFQProcessingResult,
+} from './interfaces/event-payload.interface';
 
 /**
  * Example service demonstrating how to use the DQMessaging module
@@ -33,29 +36,31 @@ export class MessagingExampleService {
    * This would typically be called in a module's onModuleInit lifecycle hook
    */
   async setupAIProcessingConsumer(): Promise<void> {
-    await this.messaging.subscribeToAIProcessing(async (message: RFQDataPayload) => {
-      console.log(`Processing RFQ: ${message.id}`);
-      console.log(`Source type: ${message.sourceType}`);
-      console.log(`Language: ${message.sourceLanguage}`);
+    await this.messaging.subscribeToAIProcessing(
+      async (message: RFQDataPayload) => {
+        console.log(`Processing RFQ: ${message.id}`);
+        console.log(`Source type: ${message.sourceType}`);
+        console.log(`Language: ${message.sourceLanguage}`);
 
-      // Your AI processing logic here
-      // This would typically:
-      // 1. Extract text via OCR (if PDF/image)
-      // 2. Translate if needed (if foreign language)
-      // 3. Parse via LLM to extract structured JSON
-      // 4. Return results via callback URL
+        // Your AI processing logic here
+        // This would typically:
+        // 1. Extract text via OCR (if PDF/image)
+        // 2. Translate if needed (if foreign language)
+        // 3. Parse via LLM to extract structured JSON
+        // 4. Return results via callback URL
 
-      const result: RFQProcessingResult = {
-        payloadId: message.id,
-        status: 'success',
-        extractedData: {
-          // Your extracted structured data
-        },
-        processedAt: new Date().toISOString(),
-      };
+        const result: RFQProcessingResult = {
+          payloadId: message.id,
+          status: 'success',
+          extractedData: {
+            // Your extracted structured data
+          },
+          processedAt: new Date().toISOString(),
+        };
 
-      console.log(`Completed processing: ${message.id}`, result);
-    });
+        console.log(`Completed processing: ${message.id}`, result);
+      },
+    );
 
     console.log('✓ AI Processing consumer started');
   }
