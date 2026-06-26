@@ -83,15 +83,16 @@ export class MessagingService implements IMessagingService {
    * @param payload The RFQ data payload
    * @param options Additional publishing options
    */
-  async publishRFQPayload(
-    payload: RFQDataPayload,
-    options?: Record<string, unknown>,
-  ): Promise<boolean> {
+  async publishRFQPayload(payload: RFQDataPayload,options?: Record<string, unknown>,): Promise<boolean> {
+    const messageWrapper = {
+    pattern: MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED, // Must match your MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED
+    data: payload,
+  };
     return this.publishMessage(
-      payload as unknown as Record<string, unknown>,
-      MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED,
-      options,
-    );
+    messageWrapper as unknown as Record<string, unknown>,
+    MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED,
+    options,
+  );
   }
 
   /**

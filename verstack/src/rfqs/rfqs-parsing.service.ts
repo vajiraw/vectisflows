@@ -69,12 +69,12 @@ export class RfqsParsingService {
   public async updateRfqLedgerStatus(
     trackingId: string,
     status:
-      | 'PENDING_ENQUEUE'
-      | 'ENQUEUED'
-      | 'FAILED_TO_ENQUEUE'
-      | 'PROCESSING'
-      | 'COMPLETED'
-      | 'FAILED',
+      | 'PENDING_ENQUEUE'    //saved to your database ledger, not yet confirmation from RabbitMQ
+      | 'ENQUEUED'           // database write succeeded, RabbitMQ accepted message
+      | 'FAILED_TO_ENQUEUE'  //database write succeeded,RabbitMQ failed definitively
+      | 'PROCESSING'         // RabbitMQ accepted message, but processing not yet complete
+      | 'COMPLETED'          // RabbitMQ accepted message, processing completed successfully
+      | 'FAILED',            // RabbitMQ accepted message, but processing failed
     errorLog: string | null = null,
   ): Promise<void> {
     this.logger.debug(
@@ -82,7 +82,6 @@ export class RfqsParsingService {
     );
 
     try {
-      // Execute live raw query against the operational ledger using Prisma
       await this.databaseService
         .getPrismaClient()
         .$queryRawUnsafe(
@@ -102,7 +101,6 @@ export class RfqsParsingService {
         `CRITICAL DB ERROR: Failed to update ledger status for Tracking ID: ${trackingId} to ${status}`,
         databaseError instanceof Error ? databaseError.stack : databaseError,
       );
-      // We bubble this error out so handlers know the DB update step failed
       throw databaseError;
     }
   }
@@ -153,12 +151,18 @@ export class RfqsParsingService {
     } catch (dbWriteError) {
       this.logger.error(
         `CRITICAL: Primary DB Write Failed for tracking ID: ${trackingId}. Systems degraded.`,
-        dbWriteError,
+        dbWriteError instanceof Error ? dbWriteError.stack : dbWriteError,
       );
-      // NOTE: If you have an emergency disk service configured, trigger it here:
-      // await this.emergencyLocalDiskService.dump(trackingId, rfqPayload).catch(...);
+
+      // =========================================================================
+      // TODO: PRIMARY DB DOWN FALLBACK IMPLEMENTATION
+      // 1. Route data to local container volume scratchpad or fallback Redis cache cluster
+      //    Example: await this.emergencyBackupService.dump(trackingId, rfqPayload);
+      // 2. Ensure internal NestJS Logger emits an explicit ERROR severity level (done above)
+      // 3. Reject with InternalServerErrorException or specialized fallback code to trigger upstream retries
+      // =========================================================================
       
-      throw new InternalServerErrorException('Data persistence failure. Request aborted.');
+      throw new InternalServerErrorException('Data persistence failure. Request aborted due to primary database outage.');
     }
 
     // 2. Broker Streaming Step
@@ -170,7 +174,6 @@ export class RfqsParsingService {
           `RFQ parsing job published with tracking ID: ${trackingId}`,
         );
 
-        // Update status to ENQUEUED in DB now that RabbitMQ has accepted it
         await this.updateRfqLedgerStatus(trackingId, 'ENQUEUED').catch((statusErr) => {
           this.logger.error(
             `Minor Consistency Warning: Message sent to RabbitMQ but failed to mark database status as ENQUEUED for ${trackingId}`,
@@ -191,7 +194,6 @@ export class RfqsParsingService {
         error instanceof Error ? error.stack : error,
       );
 
-      // Roll back the record state gracefully to reflect transit errors
       await this.updateRfqLedgerStatus(trackingId, 'FAILED_TO_ENQUEUE', errorMessage).catch(
         (dbErr) => {
           this.logger.error(
