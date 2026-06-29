@@ -39,6 +39,7 @@ export class RfqsConsumer {
     },
   })
   async handleRfqParsingJob(@Payload() data: RFQDataPayload, @Ctx() context: RmqContext): Promise<void> {
+    console.log('Received RFQ parsing job from queue.ai.processing:', data);
     const channel = context.getChannelRef();
     const originalMessage = context.getMessage();
     
@@ -56,11 +57,11 @@ export class RfqsConsumer {
     try {
       // 1. Transition status to PROCESSING
       await this.rfqsParsingService.updateRfqLedgerStatus(trackingId, 'PROCESSING');
-
+      
       // 2. Call External AI Service
       this.logger.log(`Forwarding to AI parser for Tracking ID: ${trackingId}`);
       const aiResponse = await this.callExternalAiService(data.payload);
-
+      console.log(`Processing RFQ parsing job for data.payload: ${aiResponse.product_name}`);
       // 3. Persist the final parsed output
       await this.saveParsedRfqData(trackingId, aiResponse, data);
 
@@ -158,7 +159,7 @@ private async callExternalAiService(payload: any): Promise<any> {
   const commodityType = aiResponse.product_name || 'Unknown Commodity';
   const rawQuantity = parseInt(aiResponse.quantity, 10);
   const quantity = isNaN(rawQuantity) ? 0 : rawQuantity;
-  const technicalSpecs = aiResponse.special_instructions || null;
+  const technicalSpecs = aiResponse.special_instructions || 'undefined';
   
   const timelineWeeks = parseInt(aiResponse.timeline_weeks, 10) || 4; 
   const expiresAt = new Date();

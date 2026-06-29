@@ -52,7 +52,7 @@ describe('MessagingService Integration Tests', () => {
     it('should publish a message to RFQ exchange', async () => {
       const payload: RFQDataPayload = {
         id: `test-${Date.now()}`,
-        sourceType: 'pdf',
+        sourceType: 'plain_text',
         sourceLanguage: 'en',
         payload: Buffer.from('test data').toString('base64'),
         metadata: {

@@ -115,6 +115,7 @@ export class RfqsParsingService {
     try {
       const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
       payloadData = parsedBody?.fileData || parsedBody?.prompt || '';
+      console.log('3. Extracted payloadData:', payloadData);  
       
       if (!payloadData) {
         throw new Error('Payload data extracted is blank or missing valid attributes.');

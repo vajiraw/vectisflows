@@ -1,5 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import {cors} from 'cors';
+
 import { Transport } from '@nestjs/microservices';
 import { WinstonModule } from 'nest-winston'; // Assuming this matches your import
 import { loggerConfig } from './common/logger.config'; // Adjust path accordingly
@@ -24,7 +26,8 @@ async function bootstrap() {
       },
     },
   });
-
+  // Enable CORS for everyone
+  app.enableCors(); 
   // 2. Start the Microservice Listeners
   await app.startAllMicroservices();
   logger.log('RabbitMQ microservice listeners activated.', 'Bootstrap');

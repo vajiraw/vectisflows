@@ -10,7 +10,7 @@ export class RfqsParserController {
   @Post('parse')
   @HttpCode(202)
   async parseText(@Body() body: ParseRfqDto): Promise<{ trackingId: string }> {
-    console.log('Received RFQ parsing request:', body);
+    console.log('1. Received RFQ parsing request:', body);
     const trackingId = await this.rfqsParsingService.enqueueParsingJob(body);
     return { trackingId };
   }
