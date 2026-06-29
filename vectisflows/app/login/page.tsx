@@ -22,6 +22,7 @@ export default function LoginPage() {
 
     if (username === USERNAME && password === PASSWORD) {
       sessionStorage.setItem(AUTH_KEY, "true");
+      sessionStorage.setItem("vectisflows.username", username);
       router.push("/menu");
       return;
     }

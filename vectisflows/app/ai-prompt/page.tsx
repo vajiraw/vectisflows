@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const AUTH_KEY = "vectisflows.auth";
+const USERNAME_KEY = "vectisflows.username";
+const BACKEND_URL = "http://localhost:3000/api/v1/rfqs/parse";
 
 export default function AiPromptPage() {
   const router = useRouter();
@@ -17,20 +19,23 @@ export default function AiPromptPage() {
   }, [router]);
 
   async function onSubmit() {
-  const trimmed = text.trim();
-  if (!trimmed) return;
-  setIsSubmitting(true);
-  setStatus(null);
-  const url = 'http://localhost:3000/api/v1/rfqs/parse';
-  
-  try {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    setIsSubmitting(true);
+    setStatus(null);
+
+    const url = BACKEND_URL;
+
+    try {
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt:trimmed ,
+        prompt: trimmed,
+        username: sessionStorage.getItem(USERNAME_KEY) || "unknown",
       }),
     });
     
