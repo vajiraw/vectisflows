@@ -83,16 +83,39 @@ export class MessagingService implements IMessagingService {
    * @param payload The RFQ data payload
    * @param options Additional publishing options
    */
-  async publishRFQPayload(payload: RFQDataPayload,options?: Record<string, unknown>,): Promise<boolean> {
+  async publishRFQPayload(
+    payload: RFQDataPayload,
+    options?: Record<string, unknown>,
+  ): Promise<boolean> {
     const messageWrapper = {
-    pattern: MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED, // Must match your MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED
-    data: payload,
-  };
+      pattern: MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED, // Must match your MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED
+      data: payload,
+    };
+
     return this.publishMessage(
-    messageWrapper as unknown as Record<string, unknown>,
-    MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED,
-    options,
-  );
+      messageWrapper,
+      MESSAGING_CONFIG.routingKeys.STATUS_UPLOADED,
+      options,
+    );
+  }
+
+  /**
+   * Publish RFQ "created" compliance verification event downstream.
+   */
+  async publishRfqComplianceVerificationEvent(
+    payload: RFQDataPayload,
+    options?: Record<string, unknown>,
+  ): Promise<boolean> {
+    const messageWrapper = {
+      pattern: MESSAGING_CONFIG.routingKeys.RFQ_COMPLIANCE_VERIFICATION,
+      data: payload,
+    };
+
+    return this.publishMessage(
+      messageWrapper,
+      MESSAGING_CONFIG.routingKeys.RFQ_EVENT_CREATED,
+      options,
+    );
   }
 
   /**

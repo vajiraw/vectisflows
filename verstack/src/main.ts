@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import {cors} from 'cors';
+import { cors } from 'cors';
 
 import { Transport } from '@nestjs/microservices';
 import { WinstonModule } from 'nest-winston'; // Assuming this matches your import
@@ -27,7 +27,7 @@ async function bootstrap() {
     },
   });
   // Enable CORS for everyone
-  app.enableCors(); 
+  app.enableCors();
   // 2. Start the Microservice Listeners
   await app.startAllMicroservices();
   logger.log('RabbitMQ microservice listeners activated.', 'Bootstrap');
@@ -35,7 +35,7 @@ async function bootstrap() {
   // 3. Listen on the HTTP Port
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
   await app.listen(port);
-  
+
   logger.log(`HTTP server is listening on port ${port}`, 'Bootstrap');
 }
 

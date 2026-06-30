@@ -40,14 +40,14 @@ export class RfqsParsingService {
       eventType = PARSING_PATTERN,
       errorLog = null,
     } = params;
-
+this.logger.debug('Persisting RFQ operational ledger tenant ', { tenantId });
     const created = await this.databaseService
       .getPrismaClient()
       .$queryRawUnsafe<any[]>(
         `INSERT INTO operational_ledger (tenant_id, correlation_id, event_type, status, payload, error_log)
          VALUES ($1, $2, $3, $4, $5::jsonb, $6)
          RETURNING id`,
-        tenantId,
+        'default',
         correlationId,
         eventType,
         status,
@@ -69,12 +69,12 @@ export class RfqsParsingService {
   public async updateRfqLedgerStatus(
     trackingId: string,
     status:
-      | 'PENDING_ENQUEUE'    //saved to your database ledger, not yet confirmation from RabbitMQ
-      | 'ENQUEUED'           // database write succeeded, RabbitMQ accepted message
-      | 'FAILED_TO_ENQUEUE'  //database write succeeded,RabbitMQ failed definitively
-      | 'PROCESSING'         // RabbitMQ accepted message, but processing not yet complete
-      | 'COMPLETED'          // RabbitMQ accepted message, processing completed successfully
-      | 'FAILED',            // RabbitMQ accepted message, but processing failed
+      | 'PENDING_ENQUEUE' //saved to your database ledger, not yet confirmation from RabbitMQ
+      | 'ENQUEUED' // database write succeeded, RabbitMQ accepted message
+      | 'FAILED_TO_ENQUEUE' //database write succeeded,RabbitMQ failed definitively
+      | 'PROCESSING' // RabbitMQ accepted message, but processing not yet complete
+      | 'COMPLETED' // RabbitMQ accepted message, processing completed successfully
+      | 'FAILED', // RabbitMQ accepted message, but processing failed
     errorLog: string | null = null,
   ): Promise<void> {
     this.logger.debug(
@@ -82,16 +82,14 @@ export class RfqsParsingService {
     );
 
     try {
-      await this.databaseService
-        .getPrismaClient()
-        .$queryRawUnsafe(
-          `UPDATE operational_ledger 
+      await this.databaseService.getPrismaClient().$queryRawUnsafe(
+        `UPDATE operational_ledger 
            SET status = $1, error_log = $2, updated_at = NOW()
            WHERE correlation_id = $3`,
-          status,
-          errorLog,
-          trackingId,
-        );
+        status,
+        errorLog,
+        trackingId,
+      );
 
       this.logger.log(
         `Successfully transitioned tracking ID ${trackingId} to status: ${status}`,
@@ -115,10 +113,12 @@ export class RfqsParsingService {
     try {
       const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
       payloadData = parsedBody?.fileData || parsedBody?.prompt || '';
-      console.log('3. Extracted payloadData:', payloadData);  
-      
+      console.log('3. Extracted payloadData:', payloadData);
+
       if (!payloadData) {
-        throw new Error('Payload data extracted is blank or missing valid attributes.');
+        throw new Error(
+          'Payload data extracted is blank or missing valid attributes.',
+        );
       }
     } catch (parseError) {
       this.logger.error(
@@ -136,7 +136,7 @@ export class RfqsParsingService {
     const rfqPayload: RFQDataPayload = {
       id: trackingId,
       sourceType: 'pdf',
-      payload: payloadData, 
+      payload: payloadData,
       metadata: {},
       createdAt: new Date().toISOString(),
       createdBy: 'rfq-service',
@@ -162,25 +162,30 @@ export class RfqsParsingService {
       // 2. Ensure internal NestJS Logger emits an explicit ERROR severity level (done above)
       // 3. Reject with InternalServerErrorException or specialized fallback code to trigger upstream retries
       // =========================================================================
-      
-      throw new InternalServerErrorException('Data persistence failure. Request aborted due to primary database outage.');
+
+      throw new InternalServerErrorException(
+        'Data persistence failure. Request aborted due to primary database outage.',
+      );
     }
 
     // 2. Broker Streaming Step
     try {
-      const published = await this.messagingService.publishRFQPayload(rfqPayload);
+      const published =
+        await this.messagingService.publishRFQPayload(rfqPayload);
 
       if (published) {
         this.logger.log(
           `RFQ parsing job published with tracking ID: ${trackingId}`,
         );
 
-        await this.updateRfqLedgerStatus(trackingId, 'ENQUEUED').catch((statusErr) => {
-          this.logger.error(
-            `Minor Consistency Warning: Message sent to RabbitMQ but failed to mark database status as ENQUEUED for ${trackingId}`,
-            statusErr,
-          );
-        });
+        await this.updateRfqLedgerStatus(trackingId, 'ENQUEUED').catch(
+          (statusErr) => {
+            this.logger.error(
+              `Minor Consistency Warning: Message sent to RabbitMQ but failed to mark database status as ENQUEUED for ${trackingId}`,
+              statusErr,
+            );
+          },
+        );
 
         return trackingId;
       } else {
@@ -189,20 +194,23 @@ export class RfqsParsingService {
         );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(
         `Failed to enqueue tracking ID ${trackingId}. Marking ledger as failed.`,
         error instanceof Error ? error.stack : error,
       );
 
-      await this.updateRfqLedgerStatus(trackingId, 'FAILED_TO_ENQUEUE', errorMessage).catch(
-        (dbErr) => {
-          this.logger.error(
-            `CRITICAL: Could not update ledger failure state for ${trackingId}`,
-            dbErr,
-          );
-        },
-      );
+      await this.updateRfqLedgerStatus(
+        trackingId,
+        'FAILED_TO_ENQUEUE',
+        errorMessage,
+      ).catch((dbErr) => {
+        this.logger.error(
+          `CRITICAL: Could not update ledger failure state for ${trackingId}`,
+          dbErr,
+        );
+      });
 
       throw new InternalServerErrorException(
         'Failed to process and enqueue your parsing request',

@@ -33,7 +33,10 @@ export const MESSAGING_CONFIG = {
   },
   routingKeys: {
     STATUS_UPLOADED: 'rfq.status.uploaded',
+    RFQ_EVENT_CREATED: 'rfq.event.created',
+    RFQ_COMPLIANCE_VERIFICATION: 'rfq.compliance.verification',
   },
+
   bindings: [
     {
       exchange: 'rfq.exchange',
